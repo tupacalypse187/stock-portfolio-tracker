@@ -265,7 +265,10 @@ class PortfolioTracker {
             document.getElementById('addStockForm').reset();
             this.setDefaultDate();
             await this.fetchRealTimePrices();
-        } catch(e) { this.showConfirmation('Error', 'Could not save stock to the server.', true); }
+        } catch(e) { 
+            console.error('Failed to add stock:', e);
+            this.showConfirmation('Error', 'Could not save stock to the server.', true); 
+        }
     }
 
     async removeHolding(holdingId, symbol) {
