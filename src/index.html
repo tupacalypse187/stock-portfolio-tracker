@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="container">
+                <div class="header-content">
+                    <h1 class="header-title">Portfolio Tracker</h1>
+                    <div class="header-controls">
+                        <div class="portfolio-selector">
+                            <select id="portfolioSelect" class="form-control portfolio-select">
+                                <option value="tech-growth">Tech Growth Portfolio</option>
+                                <option value="dividend-income">Dividend Income Portfolio</option>
+                            </select>
+                            <button id="editPortfolioBtn" class="btn btn--secondary btn--sm edit-btn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="last-updated">
+                            Last updated: <span id="lastUpdated">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main">
+            <div class="container">
+                <!-- Portfolio Summary -->
+                <section class="portfolio-summary">
+                    <div class="card portfolio-card">
+                        <div class="card__body">
+                            <div class="portfolio-stats">
+                                <div class="portfolio-total">
+                                    <h2>Portfolio Value</h2>
+                                    <div class="portfolio-value" id="portfolioValue">$0.00</div>
+                                </div>
+                                <div class="daily-change">
+                                    <h3>Today's Change</h3>
+                                    <div class="change-amount" id="dailyChange">$0.00 (0.00%)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Add Stock Form -->
+                <section class="add-stock-section">
+                    <div class="card">
+                        <div class="card__header">
+                            <h3>Add Stock to Portfolio</h3>
+                        </div>
+                        <div class="card__body">
+                            <form id="addStockForm" class="add-stock-form">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="stockSymbol" class="form-label">Stock Symbol</label>
+                                        <input type="text" id="stockSymbol" class="form-control" placeholder="e.g., AAPL" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="shares" class="form-label">Shares</label>
+                                        <input type="number" id="shares" class="form-control" placeholder="100" min="1" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="purchasePrice" class="form-label">Purchase Price</label>
+                                        <input type="number" id="purchasePrice" class="form-control" placeholder="150.00" step="0.01" min="0" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="purchaseDate" class="form-label">Purchase Date</label>
+                                        <input type="date" id="purchaseDate" class="form-control" required>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn--primary">Add Stock</button>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Holdings Table -->
+                <section class="holdings-section">
+                    <div class="card">
+                        <div class="card__header">
+                            <h3>Holdings</h3>
+                        </div>
+                        <div class="card__body">
+                            <!-- Desktop Table -->
+                            <div class="holdings-table-container desktop-only">
+                                <table class="holdings-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Symbol</th>
+                                            <th>Shares</th>
+                                            <th>Purchase Price</th>
+                                            <th>Current Price</th>
+                                            <th>Market Value</th>
+                                            <th>Total Gain/Loss</th>
+                                            <th>Gain/Loss %</th>
+                                            <th>Purchase Date</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="holdingsTableBody">
+                                        <!-- Holdings will be populated here -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Mobile Cards -->
+                            <div class="holdings-cards mobile-only" id="holdingsCards">
+                                <!-- Holdings cards will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Portfolio Name Edit Modal -->
+    <div id="editModal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Portfolio Name</h3>
+                <button id="closeModal" class="btn btn--secondary btn--sm">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="portfolioName" class="form-label">Portfolio Name</label>
+                    <input type="text" id="portfolioName" class="form-control" placeholder="Enter portfolio name">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelEdit" class="btn btn--secondary">Cancel</button>
+                <button id="savePortfolioName" class="btn btn--primary">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
