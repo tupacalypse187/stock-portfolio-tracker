@@ -97,10 +97,11 @@ metadata:
 spec:
   tls:
   - hosts:
-    - portfolio.yourdomain.com
+    # TODO: Replace 'portfolio.example.com' with your actual domain before deploying to production.
+    - portfolio.example.com
     secretName: portfolio-tls
   rules:
-  - host: portfolio.yourdomain.com
+  - host: portfolio.example.com
     http:
       paths:
       - path: /
