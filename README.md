@@ -216,6 +216,7 @@ PORT=3001
 NODE_ENV=production
 PORT=3001
 PUBLIC_API_KEY=<your_public_api_key_here>
+PUBLIC_ACCOUNT_ID=<your_public_api_account_id>
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=portfolio_tracker
