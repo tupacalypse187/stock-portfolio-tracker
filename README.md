@@ -139,7 +139,7 @@ docker-compose down
 // Get access token
 POST /api/auth/token
 {
-  "secret": "YOUR_SECRET_KEY",
+  "secret": "<YOUR_SECRET_KEY_HERE>",
   "validityInMinutes": 60
 }
 
