@@ -11,8 +11,13 @@ require('dotenv').config(); // To load environment variables from .env file
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const PUBLIC_API_SECRET_KEY = process.env.PUBLIC_API_KEY; // The long-lived secret key
-const PUBLIC_ACCOUNT_ID = process.env.PUBLIC_ACCOUNT_ID; // The user's account ID
+if (!process.env.PUBLIC_API_KEY || !process.env.PUBLIC_ACCOUNT_ID) {
+  console.error('Missing required environment variables: PUBLIC_API_KEY and/or PUBLIC_ACCOUNT_ID');
+  process.exit(1);
+}
+
+const PUBLIC_API_SECRET_KEY = process.env.PUBLIC_API_KEY;
+const PUBLIC_ACCOUNT_ID = process.env.PUBLIC_ACCOUNT_ID;
 
 // --- In-memory store for the short-lived access token ---
 let apiAccessToken = {
