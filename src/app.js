@@ -416,13 +416,22 @@ class PortfolioTracker {
 
         // Basic validation
         if (!stock.symbol || isNaN(stock.shares) || isNaN(stock.purchasePrice) || !stock.purchaseDate) {
-            alert('Please fill in all fields with valid values');
+        // Check for duplicate symbols
+        const portfolio = this.getCurrentPortfolio();
+        if (portfolio.holdings.some(h => h.symbol === stock.symbol)) {
+            this.showError('Stock symbol already exists in portfolio');
+            return;
+        }
+        
+        if (!stock.symbol || isNaN(stock.shares) || isNaN(stock.purchasePrice) || !stock.purchaseDate) {
+            this.showError('Please fill in all fields with valid values');
             return;
         }
 
         if (stock.shares <= 0 || stock.purchasePrice <= 0) {
-            alert('Shares and purchase price must be positive numbers');
+            this.showError('Shares and purchase price must be positive numbers');
             return;
+        }
         }
 
         // Add to current portfolio
