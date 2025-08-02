@@ -467,7 +467,7 @@ class PortfolioTracker {
     }
 
     removeHolding(index) {
-        if (confirm('Are you sure you want to remove this holding?')) {
+        if (window.confirm('Are you sure you want to remove this holding?')) {
             const portfolio = this.getCurrentPortfolio();
             if (portfolio && portfolio.holdings[index]) {
                 portfolio.holdings.splice(index, 1);
