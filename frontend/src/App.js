@@ -282,7 +282,10 @@ class PortfolioTracker {
                 }
                 delete this.holdings[holdingId];
                 this.render();
-            } catch (e) { this.showConfirmation('Error', 'Could not delete holding.', true); }
+            } catch (e) { 
+                console.error('Failed to delete holding:', e);
+                this.showConfirmation('Error', 'Could not delete holding.', true); 
+            }
         });
     }
 
