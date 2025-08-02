@@ -212,13 +212,16 @@ For local Kubernetes deployment:
 # Backend (.env)
 NODE_ENV=production
 PORT=3001
-PUBLIC_API_KEY=your_public_api_key
+# Backend (.env)
+NODE_ENV=production
+PORT=3001
+PUBLIC_API_KEY=<your_public_api_key_here>
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=portfolio_tracker
-DB_USER=portfolio_user  
-DB_PASSWORD=secure_password
-JWT_SECRET=your_jwt_secret
+DB_USER=<your_db_user_here>
+DB_PASSWORD=<your_secure_password_here>
+JWT_SECRET=<your_jwt_secret_here>
 
 # Frontend (.env)
 REACT_APP_API_URL=http://localhost:3001/api
