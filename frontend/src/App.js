@@ -1,77 +1,20 @@
-// Portfolio Tracker Application
+// Portfolio Tracker Application - Refactored for API, Local Storage, and Full CRUD
+
 class PortfolioTracker {
     constructor() {
-        this.portfolios = {
-            "tech-growth": {
-                id: "tech-growth",
-                name: "Tech Growth Portfolio",
-                holdings: [
-                    {
-                        symbol: "AAPL",
-                        shares: 50,
-                        purchasePrice: 150.25,
-                        purchaseDate: "2024-01-15",
-                        currentPrice: 175.30
-                    },
-                    {
-                        symbol: "GOOGL", 
-                        shares: 25,
-                        purchasePrice: 120.50,
-                        purchaseDate: "2024-01-20",
-                        currentPrice: 138.75
-                    },
-                    {
-                        symbol: "MSFT",
-                        shares: 30,
-                        purchasePrice: 280.00,
-                        purchaseDate: "2024-02-01", 
-                        currentPrice: 295.50
-                    }
-                ]
-            },
-            "dividend-income": {
-                id: "dividend-income",
-                name: "Dividend Income Portfolio", 
-                holdings: [
-                    {
-                        symbol: "KO",
-                        shares: 100,
-                        purchasePrice: 58.20,
-                        purchaseDate: "2024-01-10",
-                        currentPrice: 61.45
-                    },
-                    {
-                        symbol: "JNJ",
-                        shares: 40,
-                        purchasePrice: 165.80,
-                        purchaseDate: "2024-01-25",
-                        currentPrice: 172.20
-                    },
-                    {
-                        symbol: "PFE",
-                        shares: 75,
-                        purchasePrice: 42.15,
-                        purchaseDate: "2024-02-05",
-                        currentPrice: 39.80
-                    }
-                ]
-            }
-        };
+        // The API endpoint of our own backend server
+        this.API_BASE_URL = '/api'; 
+        
+        // Load portfolios from localStorage or set default
+        this.portfolios = this.loadDataFromLocalStorage();
+        
+        // The ID of the currently active portfolio
+        this.currentPortfolioId = Object.keys(this.portfolios)[0] || null;
 
-        this.priceRanges = {
-            "AAPL": {"min": 170, "max": 180},
-            "GOOGL": {"min": 135, "max": 145},
-            "MSFT": {"min": 290, "max": 300},
-            "KO": {"min": 60, "max": 65},
-            "JNJ": {"min": 168, "max": 175},
-            "PFE": {"min": 38, "max": 42}
-        };
+        // Interval timer for fetching prices
+        this.priceUpdateInterval = null;
 
-        this.currentPortfolioId = "tech-growth";
-        this.updateInterval = null;
-        this.previousPortfolioValue = 0;
-
-        // Wait for DOM to be fully loaded
+        // Ensure the DOM is ready before we try to access elements
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => this.initializeApp());
         } else {
@@ -79,182 +22,210 @@ class PortfolioTracker {
         }
     }
 
+    /**
+     * Main initialization function. Runs once the DOM is ready.
+     */
     initializeApp() {
         console.log('Initializing Portfolio Tracker...');
         this.bindEvents();
         this.updatePortfolioSelect();
-        this.renderPortfolio();
+        this.render();
         this.startPriceUpdates();
         this.setDefaultDate();
     }
-
+    
+    /**
+     * Binds all necessary event listeners to DOM elements.
+     */
     bindEvents() {
-        // Portfolio selector
-        const portfolioSelect = document.getElementById('portfolioSelect');
-        if (portfolioSelect) {
-            portfolioSelect.addEventListener('change', (e) => {
-                this.switchPortfolio(e.target.value);
-            });
-        }
+        // Portfolio selector dropdown
+        document.getElementById('portfolioSelect').addEventListener('change', (e) => {
+            this.switchPortfolio(e.target.value);
+        });
 
-        // Edit portfolio name
-        const editBtn = document.getElementById('editPortfolioBtn');
-        if (editBtn) {
-            editBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.openEditModal();
-            });
-        }
+        // Add stock form submission
+        document.getElementById('addStockForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.addStock();
+        });
 
-        // Modal events
-        const closeModal = document.getElementById('closeModal');
-        if (closeModal) {
-            closeModal.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.closeEditModal();
-            });
-        }
+        // --- Portfolio Management Buttons ---
+        document.getElementById('editPortfolioBtn').addEventListener('click', () => this.openModal('editModal'));
+        document.getElementById('createPortfolioBtn').addEventListener('click', () => this.openModal('createModal'));
+        document.getElementById('deletePortfolioBtn').addEventListener('click', () => this.deletePortfolio());
+        
+        // --- Modal Buttons ---
+        document.getElementById('savePortfolioNameBtn').addEventListener('click', () => this.savePortfolioName());
+        document.getElementById('saveNewPortfolioBtn').addEventListener('click', () => this.createPortfolio());
 
-        const cancelEdit = document.getElementById('cancelEdit');
-        if (cancelEdit) {
-            cancelEdit.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.closeEditModal();
-            });
-        }
+        // Generic modal close/cancel buttons
+        document.querySelectorAll('.modal-backdrop, .close-modal-btn, .cancel-btn').forEach(el => {
+            el.addEventListener('click', () => this.closeAllModals());
+        });
 
-        const saveBtn = document.getElementById('savePortfolioName');
-        if (saveBtn) {
-            saveBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.savePortfolioName();
-            });
-        }
-
-        // Close modal on backdrop click
-        const backdrop = document.querySelector('.modal-backdrop');
-        if (backdrop) {
-            backdrop.addEventListener('click', () => {
-                this.closeEditModal();
-            });
-        }
-
-        // Add stock form
-        const addStockForm = document.getElementById('addStockForm');
-        if (addStockForm) {
-            addStockForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.addStock();
-            });
-        }
-
-        // Close modal on Escape key
+        // Close modals with Escape key
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                this.closeEditModal();
+                this.closeAllModals();
             }
         });
     }
 
-    setDefaultDate() {
-        const dateInput = document.getElementById('purchaseDate');
-        if (dateInput) {
-            const today = new Date().toISOString().split('T')[0];
-            dateInput.value = today;
+    // --- DATA & STATE MANAGEMENT ---
+
+    /**
+     * Loads portfolio data from localStorage.
+     * @returns {object} The portfolios object.
+     */
+    loadDataFromLocalStorage() {
+        const data = localStorage.getItem('stockPortfolios');
+        if (data) {
+            return JSON.parse(data);
+        } else {
+            // Return a default structure if no data is found
+            const defaultId = `portfolio-${Date.now()}`;
+            return {
+                [defaultId]: {
+                    id: defaultId,
+                    name: "My First Portfolio",
+                    holdings: []
+                }
+            };
         }
     }
 
-    updatePortfolioSelect() {
-        const select = document.getElementById('portfolioSelect');
-        if (!select) return;
-        
-        select.innerHTML = '';
-        
-        Object.values(this.portfolios).forEach(portfolio => {
-            const option = document.createElement('option');
-            option.value = portfolio.id;
-            option.textContent = portfolio.name;
-            option.selected = portfolio.id === this.currentPortfolioId;
-            select.appendChild(option);
-        });
+    /**
+     * Saves the current portfolios object to localStorage.
+     */
+    saveDataToLocalStorage() {
+        localStorage.setItem('stockPortfolios', JSON.stringify(this.portfolios));
     }
 
+    /**
+     * Switches the active portfolio.
+     * @param {string} portfolioId - The ID of the portfolio to switch to.
+     */
     switchPortfolio(portfolioId) {
-        console.log('Switching to portfolio:', portfolioId);
-        this.currentPortfolioId = portfolioId;
-        this.renderPortfolio();
+        if (this.portfolios[portfolioId]) {
+            this.currentPortfolioId = portfolioId;
+            console.log(`Switched to portfolio: ${this.portfolios[portfolioId].name}`);
+            this.render();
+        }
     }
 
+    /**
+     * Gets the currently active portfolio object.
+     * @returns {object|null}
+     */
     getCurrentPortfolio() {
-        return this.portfolios[this.currentPortfolioId];
+        return this.portfolios[this.currentPortfolioId] || null;
     }
 
-    renderPortfolio() {
+    // --- RENDERING ---
+
+    /**
+     * Main render function to update the entire UI.
+     */
+    render() {
         const portfolio = this.getCurrentPortfolio();
         if (!portfolio) {
-            console.error('Portfolio not found:', this.currentPortfolioId);
-            return;
-        }
-
-        this.renderPortfolioSummary();
-        this.renderHoldings();
-        this.updateLastUpdated();
-    }
-
-    renderPortfolioSummary() {
-        const portfolio = this.getCurrentPortfolio();
-        const { totalValue, totalGainLoss, totalGainLossPercent } = this.calculatePortfolioTotals(portfolio);
-        
-        // Update portfolio value
-        const portfolioValueEl = document.getElementById('portfolioValue');
-        if (portfolioValueEl) {
-            portfolioValueEl.textContent = this.formatCurrency(totalValue);
-        }
-        
-        // Update daily change (simulated as total gain/loss for demo)
-        const changeElement = document.getElementById('dailyChange');
-        if (changeElement) {
-            const changeText = `${this.formatCurrency(totalGainLoss)} (${this.formatPercentage(totalGainLossPercent)})`;
-            changeElement.textContent = changeText;
-            
-            // Apply color coding
-            changeElement.className = 'change-amount';
-            if (totalGainLoss > 0) {
-                changeElement.classList.add('positive');
-            } else if (totalGainLoss < 0) {
-                changeElement.classList.add('negative');
-            }
-        }
-    }
-
-    renderHoldings() {
-        const portfolio = this.getCurrentPortfolio();
-        if (!portfolio || !portfolio.holdings.length) {
+            console.log("No portfolio selected or available. Rendering empty state.");
             this.renderEmptyState();
             return;
         }
-
-        this.renderDesktopTable(portfolio.holdings);
-        this.renderMobileCards(portfolio.holdings);
+        this.renderPortfolioSummary(portfolio);
+        this.renderHoldings(portfolio);
+        this.updateLastUpdated();
     }
 
-    renderDesktopTable(holdings) {
-        const tbody = document.getElementById('holdingsTableBody');
-        if (!tbody) return;
+    /**
+     * Updates the portfolio summary section (total value, gain/loss).
+     * @param {object} portfolio - The portfolio to summarize.
+     */
+    renderPortfolioSummary(portfolio) {
+        const { totalValue, totalGainLoss, totalGainLossPercent } = this.calculatePortfolioTotals(portfolio);
         
-        tbody.innerHTML = '';
+        document.getElementById('portfolioValue').textContent = this.formatCurrency(totalValue);
+        
+        const changeElement = document.getElementById('totalGainLoss');
+        changeElement.textContent = `${this.formatCurrency(totalGainLoss)} (${this.formatPercentage(totalGainLossPercent)})`;
+        
+        changeElement.className = 'change-amount'; // Reset classes
+        if (totalGainLoss > 0) changeElement.classList.add('positive');
+        if (totalGainLoss < 0) changeElement.classList.add('negative');
+    }
 
-        holdings.forEach((holding, index) => {
-            const row = this.createTableRow(holding, index);
-            tbody.appendChild(row);
+    /**
+     * Renders the list of holdings as a table (desktop) and cards (mobile).
+     * @param {object} portfolio - The portfolio whose holdings to render.
+     */
+    renderHoldings(portfolio) {
+        const holdingsContent = document.getElementById('holdingsContent');
+        if (!portfolio.holdings.length) {
+            holdingsContent.innerHTML = `
+                <div class="empty-state">
+                    <h3>No Holdings</h3>
+                    <p>Add your first stock to get started.</p>
+                </div>`;
+            return;
+        }
+
+        // Restore table/card structure if it was replaced by empty state
+        holdingsContent.innerHTML = `
+            <div class="holdings-table-container desktop-only">
+                <table class="holdings-table">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th><th>Shares</th><th>Purchase Price</th><th>Current Price</th>
+                            <th>Market Value</th><th>Total Gain/Loss</th><th>Gain/Loss %</th>
+                            <th>Purchase Date</th><th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="holdingsTableBody"></tbody>
+                </table>
+            </div>
+            <div class="holdings-cards mobile-only" id="holdingsCards"></div>`;
+
+        const tableBody = document.getElementById('holdingsTableBody');
+        const cardsContainer = document.getElementById('holdingsCards');
+        tableBody.innerHTML = '';
+        cardsContainer.innerHTML = '';
+
+        portfolio.holdings.forEach(holding => {
+            // Create and append table row
+            const tableRow = this.createTableRow(holding);
+            tableBody.appendChild(tableRow);
+            
+            // Create and append mobile card
+            const mobileCard = this.createMobileCard(holding);
+            cardsContainer.appendChild(mobileCard);
         });
     }
 
-    createTableRow(holding, index) {
+    /**
+     * Renders an empty state when no portfolios exist.
+     */
+    renderEmptyState() {
+        document.querySelector('.main .container').innerHTML = `
+            <div class="empty-state card">
+                <h3>No Portfolios</h3>
+                <p>Create your first portfolio to get started.</p>
+                <button id="initialCreateBtn" class="btn btn--primary">Create Portfolio</button>
+            </div>`;
+        document.getElementById('initialCreateBtn').addEventListener('click', () => {
+            // Reset the main content and open the create modal
+            window.location.reload(); 
+        });
+    }
+
+    /**
+     * Creates a DOM element for a table row.
+     * @param {object} holding - The holding data.
+     * @returns {HTMLElement} The created <tr> element.
+     */
+    createTableRow(holding) {
         const row = document.createElement('tr');
-        const marketValue = holding.shares * holding.currentPrice;
-        const totalGainLoss = marketValue - (holding.shares * holding.purchasePrice);
-        const gainLossPercent = (totalGainLoss / (holding.shares * holding.purchasePrice)) * 100;
+        const { marketValue, totalGainLoss, gainLossPercent } = this.calculateHoldingMetrics(holding);
 
         row.innerHTML = `
             <td class="symbol">${holding.symbol}</td>
@@ -266,354 +237,314 @@ class PortfolioTracker {
             <td class="percentage ${gainLossPercent >= 0 ? 'positive' : 'negative'}">${this.formatPercentage(gainLossPercent)}</td>
             <td>${this.formatDate(holding.purchaseDate)}</td>
             <td>
-                <button class="delete-btn" onclick="app.removeHolding(${index})" title="Remove holding">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3,6 5,6 21,6"></polyline>
-                        <path d="m19,6v14a2,2 0 0,1-2,2H7a2,2 0 0,1-2-2V6m3,0V4a2,2 0 0,1,2-2h4a2,2 0 0,1,2,2v2"></path>
-                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                        <line x1="14" y1="11" x2="14" y2="17"></line>
-                    </svg>
+                <button class="delete-btn" title="Remove holding">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"></polyline><path d="m19,6v14a2,2 0 0,1-2,2H7a2,2 0 0,1-2-2V6m3,0V4a2,2 0 0,1,2-2h4a2,2 0 0,1,2,2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                 </button>
             </td>
         `;
 
+        // **FIX:** Add event listener programmatically
+        row.querySelector('.delete-btn').addEventListener('click', () => this.removeHolding(holding.symbol));
         return row;
     }
 
-    renderMobileCards(holdings) {
-        const container = document.getElementById('holdingsCards');
-        if (!container) return;
-        
-        container.innerHTML = '';
-
-        holdings.forEach((holding, index) => {
-            const card = this.createMobileCard(holding, index);
-            container.appendChild(card);
-        });
-    }
-
-    createMobileCard(holding, index) {
+    /**
+     * Creates a DOM element for a mobile card.
+     * @param {object} holding - The holding data.
+     * @returns {HTMLElement} The created <div> element.
+     */
+    createMobileCard(holding) {
         const card = document.createElement('div');
         card.className = 'holding-card fade-in';
-        
-        const marketValue = holding.shares * holding.currentPrice;
-        const totalGainLoss = marketValue - (holding.shares * holding.purchasePrice);
-        const gainLossPercent = (totalGainLoss / (holding.shares * holding.purchasePrice)) * 100;
+        const { marketValue, totalGainLoss, gainLossPercent } = this.calculateHoldingMetrics(holding);
 
         card.innerHTML = `
             <div class="holding-header">
                 <div class="holding-symbol">${holding.symbol}</div>
-                <button class="delete-btn" onclick="app.removeHolding(${index})" title="Remove holding">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3,6 5,6 21,6"></polyline>
-                        <path d="m19,6v14a2,2 0 0,1-2,2H7a2,2 0 0,1-2-2V6m3,0V4a2,2 0 0,1,2-2h4a2,2 0 0,1,2,2v2"></path>
-                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                        <line x1="14" y1="11" x2="14" y2="17"></line>
-                    </svg>
+                <button class="delete-btn" title="Remove holding">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"></polyline><path d="m19,6v14a2,2 0 0,1-2,2H7a2,2 0 0,1-2-2V6m3,0V4a2,2 0 0,1,2-2h4a2,2 0 0,1,2,2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                 </button>
             </div>
             <div class="holding-details">
-                <div class="holding-detail">
-                    <span class="holding-detail-label">Shares:</span>
-                    <span class="holding-detail-value">${holding.shares.toLocaleString()}</span>
-                </div>
-                <div class="holding-detail">
-                    <span class="holding-detail-label">Purchase Price:</span>
-                    <span class="holding-detail-value currency">${this.formatCurrency(holding.purchasePrice)}</span>
-                </div>
-                <div class="holding-detail">
-                    <span class="holding-detail-label">Current Price:</span>
-                    <span class="holding-detail-value currency price-cell">${this.formatCurrency(holding.currentPrice)}</span>
-                </div>
-                <div class="holding-detail">
-                    <span class="holding-detail-label">Market Value:</span>
-                    <span class="holding-detail-value currency">${this.formatCurrency(marketValue)}</span>
-                </div>
-                <div class="holding-detail">
-                    <span class="holding-detail-label">Total Gain/Loss:</span>
-                    <span class="holding-detail-value currency ${totalGainLoss >= 0 ? 'positive' : 'negative'}">${this.formatCurrency(totalGainLoss)}</span>
-                </div>
-                <div class="holding-detail">
-                    <span class="holding-detail-label">Gain/Loss %:</span>
-                    <span class="holding-detail-value percentage ${gainLossPercent >= 0 ? 'positive' : 'negative'}">${this.formatPercentage(gainLossPercent)}</span>
-                </div>
-                <div class="holding-detail">
-                    <span class="holding-detail-label">Purchase Date:</span>
-                    <span class="holding-detail-value">${this.formatDate(holding.purchaseDate)}</span>
-                </div>
+                <div class="holding-detail"><span class="holding-detail-label">Market Value:</span><span class="holding-detail-value currency">${this.formatCurrency(marketValue)}</span></div>
+                <div class="holding-detail"><span class="holding-detail-label">Total Gain/Loss:</span><span class="holding-detail-value currency ${totalGainLoss >= 0 ? 'positive' : 'negative'}">${this.formatCurrency(totalGainLoss)}</span></div>
+                <div class="holding-detail"><span class="holding-detail-label">Current Price:</span><span class="holding-detail-value currency price-cell">${this.formatCurrency(holding.currentPrice)}</span></div>
+                <div class="holding-detail"><span class="holding-detail-label">Shares:</span><span class="holding-detail-value">${holding.shares.toLocaleString()}</span></div>
             </div>
         `;
-
+        
+        // **FIX:** Add event listener programmatically
+        card.querySelector('.delete-btn').addEventListener('click', () => this.removeHolding(holding.symbol));
         return card;
     }
 
-    renderEmptyState() {
-        const desktopTable = document.getElementById('holdingsTableBody');
-        const mobileCards = document.getElementById('holdingsCards');
-        
-        const emptyMessage = `
-            <div class="empty-state">
-                <h3>No Holdings</h3>
-                <p>Add your first stock to get started with tracking your portfolio.</p>
-            </div>
-        `;
+    /**
+     * Populates the portfolio selector dropdown.
+     */
+    updatePortfolioSelect() {
+        const select = document.getElementById('portfolioSelect');
+        select.innerHTML = '';
+        Object.values(this.portfolios).forEach(p => {
+            const option = document.createElement('option');
+            option.value = p.id;
+            option.textContent = p.name;
+            option.selected = p.id === this.currentPortfolioId;
+            select.appendChild(option);
+        });
+    }
 
-        if (desktopTable) {
-            desktopTable.innerHTML = `<tr><td colspan="9">${emptyMessage}</td></tr>`;
+    // --- API & PRICE UPDATES ---
+
+    /**
+     * Starts the periodic fetching of stock prices.
+     */
+    startPriceUpdates() {
+        this.fetchRealTimePrices(); // Fetch immediately on start
+        if (this.priceUpdateInterval) clearInterval(this.priceUpdateInterval);
+        // Fetch every 30 seconds to be respectful of API limits
+        this.priceUpdateInterval = setInterval(() => this.fetchRealTimePrices(), 30000);
+    }
+
+    /**
+     * Fetches real-time prices from the backend API for all holdings.
+     */
+    async fetchRealTimePrices() {
+        const allSymbols = new Set();
+        Object.values(this.portfolios).forEach(p => {
+            p.holdings.forEach(h => allSymbols.add(h.symbol));
+        });
+
+        if (allSymbols.size === 0) return; // No stocks to update
+
+        try {
+            const symbolsQuery = Array.from(allSymbols).join(',');
+            const response = await fetch(`${this.API_BASE_URL}/quotes?symbols=${symbolsQuery}`);
+            if (!response.ok) {
+                throw new Error(`API request failed with status ${response.status}`);
+            }
+            const prices = await response.json();
+
+            // Update prices across all portfolios
+            Object.values(this.portfolios).forEach(p => {
+                p.holdings.forEach(h => {
+                    if (prices[h.symbol] !== undefined) {
+                        h.currentPrice = prices[h.symbol];
+                    }
+                });
+            });
+
+            this.saveDataToLocalStorage();
+            this.render(); // Re-render the currently viewed portfolio with new prices
+            
+            // Flash animation for updated prices
+            document.querySelectorAll('.price-cell').forEach(cell => {
+                cell.classList.add('price-flash');
+                setTimeout(() => cell.classList.remove('price-flash'), 600);
+            });
+
+        } catch (error) {
+            console.error('Failed to fetch real-time prices:', error);
+            // Optionally show an error to the user
         }
-        if (mobileCards) {
-            mobileCards.innerHTML = emptyMessage;
+    }
+
+    // --- ACTIONS (Add, Remove, Create, etc.) ---
+
+    /**
+     * Adds a new stock to the current portfolio.
+     */
+    async addStock() {
+        const portfolio = this.getCurrentPortfolio();
+        if (!portfolio) {
+            this.showConfirmation('No Portfolio Selected', 'Please create or select a portfolio first.', true);
+            return;
         }
+
+        const symbol = document.getElementById('stockSymbol').value.toUpperCase().trim();
+        const shares = parseFloat(document.getElementById('shares').value);
+        const purchasePrice = parseFloat(document.getElementById('purchasePrice').value);
+        const purchaseDate = document.getElementById('purchaseDate').value;
+
+        if (!symbol || !shares || !purchasePrice || !purchaseDate || shares <= 0 || purchasePrice < 0) {
+            this.showConfirmation('Invalid Input', 'Please fill all fields correctly. Shares and price must be positive.', true);
+            return;
+        }
+
+        if (portfolio.holdings.some(h => h.symbol === symbol)) {
+            this.showConfirmation('Duplicate Stock', `Stock with symbol ${symbol} already exists in this portfolio.`, true);
+            return;
+        }
+
+        const newHolding = { symbol, shares, purchasePrice, purchaseDate, currentPrice: purchasePrice };
+        portfolio.holdings.push(newHolding);
+        
+        document.getElementById('addStockForm').reset();
+        this.setDefaultDate();
+
+        this.saveDataToLocalStorage();
+        await this.fetchRealTimePrices(); // Fetch prices immediately for the new stock
+        this.render();
+    }
+
+    /**
+     * Removes a holding from the current portfolio by its symbol.
+     * @param {string} symbolToRemove - The symbol of the stock to remove.
+     */
+    removeHolding(symbolToRemove) {
+        this.showConfirmation('Confirm Deletion', `Are you sure you want to remove ${symbolToRemove} from this portfolio?`, false, () => {
+            const portfolio = this.getCurrentPortfolio();
+            if (portfolio) {
+                portfolio.holdings = portfolio.holdings.filter(h => h.symbol !== symbolToRemove);
+                this.saveDataToLocalStorage();
+                this.render();
+            }
+        });
+    }
+
+    /**
+     * Creates a new, empty portfolio.
+     */
+    createPortfolio() {
+        const nameInput = document.getElementById('newPortfolioName');
+        const newName = nameInput.value.trim();
+        if (!newName) {
+            this.showConfirmation('Invalid Name', 'Portfolio name cannot be empty.', true);
+            return;
+        }
+
+        const newId = `portfolio-${Date.now()}`;
+        this.portfolios[newId] = {
+            id: newId,
+            name: newName,
+            holdings: []
+        };
+
+        this.currentPortfolioId = newId;
+        this.saveDataToLocalStorage();
+        this.updatePortfolioSelect();
+        this.render();
+        this.closeAllModals();
+        nameInput.value = '';
+    }
+
+    /**
+     * Saves the new name for the current portfolio.
+     */
+    savePortfolioName() {
+        const portfolio = this.getCurrentPortfolio();
+        const nameInput = document.getElementById('portfolioName');
+        const newName = nameInput.value.trim();
+
+        if (portfolio && newName) {
+            portfolio.name = newName;
+            this.saveDataToLocalStorage();
+            this.updatePortfolioSelect();
+            this.closeAllModals();
+        }
+    }
+
+    /**
+     * Deletes the currently selected portfolio after confirmation.
+     */
+    deletePortfolio() {
+        const portfolio = this.getCurrentPortfolio();
+        if (!portfolio) return;
+
+        if (Object.keys(this.portfolios).length <= 1) {
+            this.showConfirmation('Cannot Delete', 'You cannot delete the last portfolio.', true);
+            return;
+        }
+
+        this.showConfirmation('Delete Portfolio?', `Are you sure you want to delete "${portfolio.name}"? This action cannot be undone.`, false, () => {
+            delete this.portfolios[this.currentPortfolioId];
+            this.currentPortfolioId = Object.keys(this.portfolios)[0]; // Switch to the first available
+            this.saveDataToLocalStorage();
+            this.updatePortfolioSelect();
+            this.render();
+        });
+    }
+    
+    // --- UTILITIES & HELPERS ---
+
+    calculateHoldingMetrics(holding) {
+        const marketValue = holding.shares * holding.currentPrice;
+        const totalCost = holding.shares * holding.purchasePrice;
+        const totalGainLoss = marketValue - totalCost;
+        const gainLossPercent = totalCost > 0 ? (totalGainLoss / totalCost) * 100 : 0;
+        return { marketValue, totalGainLoss, gainLossPercent };
     }
 
     calculatePortfolioTotals(portfolio) {
         let totalValue = 0;
         let totalCost = 0;
-
-        portfolio.holdings.forEach(holding => {
-            const marketValue = holding.shares * holding.currentPrice;
-            const cost = holding.shares * holding.purchasePrice;
-            totalValue += marketValue;
-            totalCost += cost;
+        portfolio.holdings.forEach(h => {
+            totalValue += h.shares * h.currentPrice;
+            totalCost += h.shares * h.purchasePrice;
         });
-
         const totalGainLoss = totalValue - totalCost;
         const totalGainLossPercent = totalCost > 0 ? (totalGainLoss / totalCost) * 100 : 0;
-
         return { totalValue, totalGainLoss, totalGainLossPercent };
     }
 
-    addStock() {
-        console.log('Adding stock...');
-        
-        // Get form values
-        const symbolInput = document.getElementById('stockSymbol');
-        const sharesInput = document.getElementById('shares');
-        const priceInput = document.getElementById('purchasePrice');
-        const dateInput = document.getElementById('purchaseDate');
-        
-        if (!symbolInput || !sharesInput || !priceInput || !dateInput) {
-            console.error('Form inputs not found');
-            return;
-        }
-
-        const stockSymbol = symbolInput.value.toUpperCase().trim();
-        // Validate stock symbol: 1-6 alphanumeric characters, no spaces or special chars
-        const symbolRegex = /^[A-Z0-9]{1,6}$/;
-        if (!symbolRegex.test(stockSymbol)) {
-            alert('Invalid stock symbol. Please enter 1-6 alphanumeric characters (letters and numbers only).');
-            return;
-        }
-        const stock = {
-            symbol: stockSymbol,
-            shares: parseInt(sharesInput.value),
-            purchasePrice: parseFloat(priceInput.value),
-            purchaseDate: dateInput.value,
-            currentPrice: parseFloat(priceInput.value) // Start with purchase price
-        };
-
-        console.log('Stock data:', stock);
-
-        // Basic validation
-        if (!stock.symbol || isNaN(stock.shares) || isNaN(stock.purchasePrice) || !stock.purchaseDate) {
-        // Check for duplicate symbols
-        const portfolio = this.getCurrentPortfolio();
-        if (portfolio.holdings.some(h => h.symbol === stock.symbol)) {
-            this.showError('Stock symbol already exists in portfolio');
-            return;
-        }
-        
-        if (!stock.symbol || isNaN(stock.shares) || isNaN(stock.purchasePrice) || !stock.purchaseDate) {
-            this.showError('Please fill in all fields with valid values');
-            return;
-        }
-
-        if (stock.shares <= 0 || stock.purchasePrice <= 0) {
-            this.showError('Shares and purchase price must be positive numbers');
-            return;
-        }
-        }
-
-        // Add to current portfolio
-        const portfolio = this.getCurrentPortfolio();
-        if (!portfolio) {
-            console.error('No current portfolio found');
-            return;
-        }
-
-        portfolio.holdings.push(stock);
-        console.log('Stock added to portfolio:', portfolio.name);
-
-        // Add to price ranges for simulation (use purchase price as base)
-        if (!this.priceRanges[stock.symbol]) {
-            const basePrice = stock.purchasePrice;
-            this.priceRanges[stock.symbol] = {
-                min: basePrice * 0.9,
-                max: basePrice * 1.1
-            };
-        }
-
-        // Clear form
-        const form = document.getElementById('addStockForm');
-        if (form) {
-            form.reset();
-            this.setDefaultDate();
-        }
-
-        // Re-render
-        this.renderPortfolio();
-        
-        console.log('Stock successfully added and portfolio updated');
-    }
-
-    removeHolding(index) {
-        if (window.confirm('Are you sure you want to remove this holding?')) {
-            const portfolio = this.getCurrentPortfolio();
-            if (portfolio && portfolio.holdings[index]) {
-                portfolio.holdings.splice(index, 1);
-                this.renderPortfolio();
-            }
-        }
-    }
-
-    openEditModal() {
-        console.log('Opening edit modal...');
-        const portfolio = this.getCurrentPortfolio();
-        const nameInput = document.getElementById('portfolioName');
-        const modal = document.getElementById('editModal');
-        
-        if (portfolio && nameInput && modal) {
-            nameInput.value = portfolio.name;
-            modal.classList.remove('hidden');
-            nameInput.focus();
-        } else {
-            console.error('Modal elements not found');
-        }
-    }
-
-    closeEditModal() {
-        const modal = document.getElementById('editModal');
+    openModal(modalId) {
+        this.closeAllModals(); // Ensure no other modals are open
+        const modal = document.getElementById(modalId);
         if (modal) {
-            modal.classList.add('hidden');
+            if (modalId === 'editModal') {
+                document.getElementById('portfolioName').value = this.getCurrentPortfolio()?.name || '';
+            }
+            modal.classList.remove('hidden');
         }
     }
 
-    savePortfolioName() {
-        const nameInput = document.getElementById('portfolioName');
-        if (!nameInput) return;
+    closeAllModals() {
+        document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
+    }
+
+    showConfirmation(title, message, isAlertOnly = false, onOkCallback = null) {
+        const modal = document.getElementById('confirmModal');
+        document.getElementById('confirmTitle').textContent = title;
+        document.getElementById('confirmMessage').textContent = message;
+
+        const okBtn = document.getElementById('confirmOkBtn');
+        const cancelBtn = document.getElementById('confirmCancelBtn');
+
+        cancelBtn.style.display = isAlertOnly ? 'none' : 'inline-flex';
+        okBtn.textContent = isAlertOnly ? 'OK' : 'Confirm';
+
+        // Clone and replace to remove old event listeners
+        const newOkBtn = okBtn.cloneNode(true);
+        okBtn.parentNode.replaceChild(newOkBtn, okBtn);
         
-        const newName = nameInput.value.trim();
-        if (!newName) {
-            alert('Please enter a portfolio name');
-            return;
-        }
-
-        const portfolio = this.getCurrentPortfolio();
-        if (portfolio) {
-            portfolio.name = newName;
-            this.updatePortfolioSelect();
-            this.closeEditModal();
-            console.log('Portfolio name updated to:', newName);
-        }
-    }
-
-    startPriceUpdates() {
-        // Initial calculation
-        const portfolio = this.getCurrentPortfolio();
-        if (portfolio) {
-            this.previousPortfolioValue = this.calculatePortfolioTotals(portfolio).totalValue;
-        }
-        
-        this.updateInterval = setInterval(() => {
-            this.simulatePriceUpdates();
-        }, 5000);
-    }
-
-    simulatePriceUpdates() {
-        let hasUpdates = false;
-
-        // Update prices for all portfolios
-        Object.values(this.portfolios).forEach(portfolio => {
-            portfolio.holdings.forEach(holding => {
-                if (this.priceRanges[holding.symbol]) {
-                    const range = this.priceRanges[holding.symbol];
-                    const volatility = 0.02; // 2% max change per update
-                    const change = (Math.random() - 0.5) * 2 * volatility;
-                    let newPrice = holding.currentPrice * (1 + change);
-                    
-                    // Keep within realistic ranges
-                    newPrice = Math.max(range.min, Math.min(range.max, newPrice));
-                    
-                    if (Math.abs(newPrice - holding.currentPrice) > 0.01) {
-                        holding.currentPrice = newPrice;
-                        hasUpdates = true;
-                    }
-                }
-            });
+        newOkBtn.addEventListener('click', () => {
+            this.closeAllModals();
+            if (onOkCallback) onOkCallback();
         });
 
-        if (hasUpdates) {
-            // Add flash animation to price cells
-            document.querySelectorAll('.price-cell').forEach(cell => {
-                cell.classList.add('price-flash');
-                setTimeout(() => cell.classList.remove('price-flash'), 500);
-            });
-
-            this.renderPortfolio();
-        }
+        this.openModal('confirmModal');
     }
 
     updateLastUpdated() {
-        const lastUpdatedEl = document.getElementById('lastUpdated');
-        if (lastUpdatedEl) {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString();
-            lastUpdatedEl.textContent = timeString;
-        }
+        document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
     }
 
+    setDefaultDate() {
+        document.getElementById('purchaseDate').value = new Date().toISOString().split('T')[0];
+    }
+    
     formatCurrency(amount) {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(amount);
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
     }
 
     formatPercentage(percent) {
-        const sign = percent >= 0 ? '+' : '';
-        return `${sign}${percent.toFixed(2)}%`;
+        return `${percent >= 0 ? '+' : ''}${percent.toFixed(2)}%`;
     }
 
     formatDate(dateString) {
-        return new Date(dateString).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        });
+        const date = new Date(dateString + 'T00:00:00'); // Assume local timezone
+        return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
     }
 }
 
-// Initialize the application
-let app;
-
-// Ensure we initialize only once when DOM is ready
-function initializePortfolioTracker() {
-    if (!app) {
-        app = new PortfolioTracker();
-    }
-}
-
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializePortfolioTracker);
-} else {
-    initializePortfolioTracker();
-}
-
-// Handle window beforeunload
-window.addEventListener('beforeunload', () => {
-    if (app && app.updateInterval) {
-        clearInterval(app.updateInterval);
-    }
-});
+// --- App Instantiation ---
+const app = new PortfolioTracker();

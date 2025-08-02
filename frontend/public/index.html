@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="app">
+    <div id="app" class="app">
         <!-- Header -->
         <header class="header">
             <div class="container">
@@ -16,15 +16,18 @@
                     <div class="header-controls">
                         <div class="portfolio-selector">
                             <select id="portfolioSelect" class="form-control portfolio-select">
-                                <option value="tech-growth">Tech Growth Portfolio</option>
-                                <option value="dividend-income">Dividend Income Portfolio</option>
+                                <!-- Options populated by JS -->
                             </select>
-                            <button id="editPortfolioBtn" class="btn btn--secondary btn--sm edit-btn">
+                            <button id="editPortfolioBtn" class="btn btn--secondary btn--sm edit-btn" title="Edit portfolio name">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                     <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                 </svg>
                             </button>
+                        </div>
+                         <div class="header-actions">
+                            <button id="createPortfolioBtn" class="btn btn--secondary btn--sm">New Portfolio</button>
+                            <button id="deletePortfolioBtn" class="btn btn--danger btn--sm">Delete Portfolio</button>
                         </div>
                         <div class="last-updated">
                             Last updated: <span id="lastUpdated">--</span>
@@ -46,8 +49,8 @@
                                     <div class="portfolio-value" id="portfolioValue">$0.00</div>
                                 </div>
                                 <div class="daily-change">
-                                    <h3>Today's Change</h3>
-                                    <div class="change-amount" id="dailyChange">$0.00 (0.00%)</div>
+                                    <h3>Total Gain/Loss</h3>
+                                    <div class="change-amount" id="totalGainLoss">$0.00 (0.00%)</div>
                                 </div>
                             </div>
                         </div>
@@ -69,11 +72,11 @@
                                     </div>
                                     <div class="form-group">
                                         <label for="shares" class="form-label">Shares</label>
-                                        <input type="number" id="shares" class="form-control" placeholder="100" min="1" required>
+                                        <input type="number" id="shares" class="form-control" placeholder="100" min="0.0001" step="any" required>
                                     </div>
                                     <div class="form-group">
                                         <label for="purchasePrice" class="form-label">Purchase Price</label>
-                                        <input type="number" id="purchasePrice" class="form-control" placeholder="150.00" step="0.01" min="0" required>
+                                        <input type="number" id="purchasePrice" class="form-control" placeholder="150.00" step="any" min="0" required>
                                     </div>
                                     <div class="form-group">
                                         <label for="purchaseDate" class="form-label">Purchase Date</label>
@@ -92,7 +95,7 @@
                         <div class="card__header">
                             <h3>Holdings</h3>
                         </div>
-                        <div class="card__body">
+                        <div class="card__body" id="holdingsContent">
                             <!-- Desktop Table -->
                             <div class="holdings-table-container desktop-only">
                                 <table class="holdings-table">
@@ -132,7 +135,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Edit Portfolio Name</h3>
-                <button id="closeModal" class="btn btn--secondary btn--sm">×</button>
+                <button class="close-modal-btn btn btn--secondary btn--sm">×</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
@@ -141,12 +144,51 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button id="cancelEdit" class="btn btn--secondary">Cancel</button>
-                <button id="savePortfolioName" class="btn btn--primary">Save</button>
+                <button class="cancel-btn btn btn--secondary">Cancel</button>
+                <button id="savePortfolioNameBtn" class="btn btn--primary">Save</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Create Portfolio Modal -->
+    <div id="createModal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New Portfolio</h3>
+                <button class="close-modal-btn btn btn--secondary btn--sm">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="newPortfolioName" class="form-label">Portfolio Name</label>
+                    <input type="text" id="newPortfolioName" class="form-control" placeholder="e.g., Retirement Fund">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="cancel-btn btn btn--secondary">Cancel</button>
+                <button id="saveNewPortfolioBtn" class="btn btn--primary">Create</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Custom Alert/Confirm Modal -->
+    <div id="confirmModal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="confirmTitle">Confirmation</h3>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage">Are you sure?</p>
+            </div>
+            <div class="modal-footer">
+                <button id="confirmCancelBtn" class="btn btn--secondary">Cancel</button>
+                <button id="confirmOkBtn" class="btn btn--danger">OK</button>
             </div>
         </div>
     </div>
 
-    <script src="app.js"></script>
+
+    <script src="App.js"></script>
 </body>
 </html>
