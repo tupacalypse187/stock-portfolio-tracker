@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stock-portfolio-tracker
+  namespace: portfolio-tracker
+  labels:
+    app: stock-portfolio-tracker
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: stock-portfolio-tracker
+  template:
+    metadata:
+      labels:
+        app: stock-portfolio-tracker
+    spec:
+      containers:
+      - name: portfolio-tracker
+        image: docker.io/tupacalypse187/stock-portfolio-tracker:latest
+        ports:
+        - containerPort: 3001
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "3001"
+        - name: PUBLIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: portfolio-secrets
+              key: public-api-key
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: portfolio-secrets
+              key: db-password
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3001
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      imagePullSecrets:
+      - name: dockerhub-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stock-portfolio-tracker-service
+  namespace: portfolio-tracker
+  labels:
+    app: stock-portfolio-tracker
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 3001
+    protocol: TCP
+    name: http
+  selector:
+    app: stock-portfolio-tracker
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: stock-portfolio-tracker-ingress
+  namespace: portfolio-tracker
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+spec:
+  tls:
+  - hosts:
+    # TODO: Replace 'portfolio.example.com' with your actual domain before deploying to production.
+    - portfolio.example.com
+    secretName: portfolio-tls
+  rules:
+  - host: portfolio.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: stock-portfolio-tracker-service
+            port:
+              number: 80
