@@ -397,8 +397,15 @@ class PortfolioTracker {
             return;
         }
 
+        const stockSymbol = symbolInput.value.toUpperCase().trim();
+        // Validate stock symbol: 1-6 alphanumeric characters, no spaces or special chars
+        const symbolRegex = /^[A-Z0-9]{1,6}$/;
+        if (!symbolRegex.test(stockSymbol)) {
+            alert('Invalid stock symbol. Please enter 1-6 alphanumeric characters (letters and numbers only).');
+            return;
+        }
         const stock = {
-            symbol: symbolInput.value.toUpperCase().trim(),
+            symbol: stockSymbol,
             shares: parseInt(sharesInput.value),
             purchasePrice: parseFloat(priceInput.value),
             purchaseDate: dateInput.value,
