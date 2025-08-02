@@ -180,8 +180,29 @@ app.delete('/api/portfolios/:id', async (req, res) => {
 app.post('/api/portfolios/:portfolioId/holdings', async (req, res) => {
     try {
         const { symbol, shares, purchasePrice, purchaseDate } = req.body;
+        
+        // Validate required fields
+        if (!symbol || !shares || !purchasePrice || !purchaseDate) {
+            return res.status(400).json({ error: 'All fields (symbol, shares, purchasePrice, purchaseDate) are required.' });
+        }
+        
+        // Validate data types
+        if (isNaN(parseFloat(shares)) || isNaN(parseFloat(purchasePrice))) {
+            return res.status(400).json({ error: 'Shares and purchasePrice must be valid numbers.' });
+        }
+        
+        // Validate portfolio exists
+        const portfolio = await Portfolio.findByPk(req.params.portfolioId);
+        if (!portfolio) {
+            return res.status(404).json({ error: 'Portfolio not found.' });
+        }
+        
         const newHolding = await Holding.create({
-            symbol, shares, purchasePrice, purchaseDate, portfolioId: req.params.portfolioId
+            symbol: symbol.toUpperCase().trim(), 
+            shares: parseFloat(shares), 
+            purchasePrice: parseFloat(purchasePrice), 
+            purchaseDate, 
+            portfolioId: req.params.portfolioId
         });
         res.status(201).json(newHolding);
     } catch (e) {
